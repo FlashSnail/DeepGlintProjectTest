@@ -1,0 +1,9 @@
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/1.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/2.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/3.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/4.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/5.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/6.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/7.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/8.jpg;0
+F:/VS2010/faceRecgnition/einfacedata/trainingdata/9.jpg;0
