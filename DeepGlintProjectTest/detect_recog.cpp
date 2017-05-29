@@ -22,8 +22,11 @@
 #include <direct.h> 
 #include <sys/types.h>
 #include <conio.h>
+#include "DlgVerify.h"
 using namespace std;
 using namespace cv;
+static int recog_time = 0;
+
 void detect_and_draw( IplImage* img ) // 只是检测，并圈出人脸
 {
     static CvScalar colors[] = 
@@ -199,19 +202,45 @@ void recog_and_draw( IplImage* img )
 			//cvCircle( img, center, radius, color, 3, 8, 0 ); // 从中心位置画圆，圈出脸部区域
 			
 			Mat test = faceGray;
-			//images[images.size() - 1] = test;
+		//	images[images.size() - 1] = test;
 			model->train(images, labels);
-			//predictedLabel = model->predict(test);
+			model->save("MyFaceLBPHModel.xml");
+			predictedLabel = model->predict(test);
 			double predicted_confidence = 0.0;
 			model->predict(test,predictedLabel,predicted_confidence);
 			stringstream strStream;
 			strStream<<predicted_confidence;
 			string ss = strStream.str(); 
-			cvText(img, ss.c_str(), r->x+r->width*0.5, r->y); 
-			if(predicted_confidence <= dConfidence)
-				cvText(img, "Result:YES", 0, 30); 
+			cvText(img, ss.c_str(), r->x + r->width*0.5, r->y);
+			if (predicted_confidence <= dConfidence)
+				cvText(img, "Result:YES", 0, 30);
 			else
-				cvText(img, "Result:NO", 0, 30);  
+				cvText(img, "Result:NO", 0, 30);
+			if (predicted_confidence <= dConfidence){
+				recog_time++;
+			}
+		/*	else
+				recog_time--;*/
+			if (recog_time == 2)
+			{
+				CDlgVerify dlg;
+				CString str;
+				if (predictedLabel == 0)
+				{
+					str = _T("张泽华");
+				}
+				else if (predictedLabel == 1)
+				{
+					str = _T("Qi");
+				}
+				else
+				{
+					str = _T("未在库中");
+				}
+				dlg.setResult(str);
+				recog_time = 0;
+			}
+			
 			//cout << "predict:"<<model->predict(test) << endl;
 			//cout << "predict:"<< predictedLabel << "\nconfidence:" << predicted_confidence << endl;
 

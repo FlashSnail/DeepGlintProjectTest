@@ -6,13 +6,14 @@
 #include "DlgVerify.h"
 #include "afxdialogex.h"
 
-
+static int lastLabel = 10000;
 // CDlgVerify 对话框
 
 IMPLEMENT_DYNAMIC(CDlgVerify, CDialogEx)
 
 CDlgVerify::CDlgVerify(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDlgVerify::IDD, pParent)
+	, m_result(_T(""))
 {
 	//====================================================
 	//初始化
@@ -22,7 +23,6 @@ CDlgVerify::CDlgVerify(CWnd* pParent /*=NULL*/)
 	bool_picNum = false;//全局变量 标志训练图片是否为空
 	bool_detec_reco = false;//全局变量 
 	dConfidence = 0;//置信度
-	predictedLabel = 100000;
 	use_nested_cascade = 0;
 	cascade_name = "../data/haarcascades/haarcascade_frontalface_alt.xml";
 	nested_cascade_name = "../data/haarcascade_eye_tree_eyeglasses.xml";
@@ -40,6 +40,8 @@ CDlgVerify::CDlgVerify(CWnd* pParent /*=NULL*/)
 	nested_cascade_opt = "--nested-cascade";
 	nested_cascade_opt_len = (int)strlen(nested_cascade_opt);
 	input_name = 0;
+
+	first = true;
 	//====================================================
 }
 
@@ -50,6 +52,7 @@ CDlgVerify::~CDlgVerify()
 void CDlgVerify::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_EDIT_RESULT, m_result);
 }
 
 
@@ -92,19 +95,26 @@ void CDlgVerify::OnDestroy()
 void CDlgVerify::OnTimer(UINT_PTR nIDEvent)
 {
 	//显示摄像头
+	CvvImage m_CvvImage;
 	IplImage* m_Frame;
 	m_Frame = cvQueryFrame(capture);
-	//判断是检测还是识别人脸
-	if (bool_cameOpen)
+	switch (nIDEvent)
 	{
-		if (!bool_detec_reco)//false只为识别
-		{
-			detect_and_draw(m_Frame);//检测人脸
+	case 1:			
+		detect_and_draw(m_Frame);//检测人脸
+		if (first){
+			detect();
+			first = false;
 		}
-		else if (bool_picNum)//false代表训练图片为空
-			recog_and_draw(m_Frame);//检测和识别人脸
+		break;
+	case 2:
+		// 判断是检测还是识别人脸
+	//	recog_and_draw(m_Frame);//检测和识别人脸
+		detect();
+		break;
+	default:
+		break;
 	}
-	CvvImage m_CvvImage;
 	m_CvvImage.CopyOf(m_Frame, 1);
 	if (true)
 	{
@@ -158,7 +168,8 @@ void CDlgVerify::OnBnClickedBtnBegin()
 	}
 
 	// 设置计时器,每10ms触发一次事件
-	SetTimer(1, 10, NULL);
+	SetTimer(1, 10, NULL);	//检测
+	SetTimer(2, 8000, NULL);	//识别，一次识别要卡3s左右
 
 	cascade = (CvHaarClassifierCascade*)cvLoad(cascade_name, 0, 0, 0); // 加载分类器 
 	if (!cascade)
@@ -185,14 +196,29 @@ void CDlgVerify::OnBnClickedBtnBegin()
 		return;
 	}
 
+	string fn_csv = "at.txt";
+	try
+	{
+		images.clear();
+		labels.clear();
+		read_csv(fn_csv, images, labels);
+	}
+	catch (cv::Exception& e)
+	{
+		cerr << "Error opening file \"" << fn_csv << "\". Reason: " << e.msg << endl;
+		// 文件有问题，我们啥也做不了了，退出了
+		exit(1);
+	}
+
 	//如果没有读到足够的图片，就退出
 	if (images.size() < 1)
 	{
 		MessageBox(_T("This demo needs at least 1 images to work!"));
 		return;
 	}
-	//training
+/*	//training
 	model->train(images, labels);
+	model->save("MyFaceLBPHModel.xml");*/
 	bool_detec_reco = true;
 	bool_picNum = true;
 }
@@ -214,4 +240,65 @@ void CDlgVerify::OnBnClickedBtnEnd()
 	GetDlgItem(IDC_BTN_END)->EnableWindow(false);
 	bool_cameOpen = false;
 	//=========================================================
+}
+
+void CDlgVerify::setResult(CString str)
+{
+	m_result = str;
+	/*if (::IsWindow(GetSafeHwnd()))
+	{
+		CWnd* pwnd = GetDlgItem(IDC_EDIT_RESULT); // CEdit派生类  
+		if (pwnd != NULL)
+		{
+			pwnd->SetWindowText(str);
+		}
+	}*/
+	//UpdateData(false);
+	AfxMessageBox(str);
+}
+
+void CDlgVerify::detect()
+{
+	Mat test = faceGray;
+	model->train(images, labels);
+	model->save("MyFaceLBPHModel.xml");
+	predictedLabel = model->predict(test);
+	double predicted_confidence = 0.0;
+	model->predict(test, predictedLabel, predicted_confidence);
+	CString str;
+	str = _T("识别中。。。");
+	if (predicted_confidence <= dConfidence){
+		if (lastLabel == 10000)	//10000是我设置的标志，代表没有label信息
+		{
+			lastLabel = predictedLabel;
+		}
+		else
+		{
+			if (lastLabel != predictedLabel)	//如果相邻两次检测的label不相同，则初始化，相同则输出
+				lastLabel = 10000;
+			else
+			{
+				if (predictedLabel == 1)
+				{
+					str = _T("张泽华");
+				}
+				else if (predictedLabel == 2)
+				{
+					str = _T("Qi");
+				}
+				else
+				{
+					str = _T("未在库中");
+				}
+			}
+		}
+	}
+	else
+	{
+		str = _T("未在库中");
+	}
+	UpdateData(true);
+	m_result = str;
+	GetDlgItem(IDC_EDIT_RESULT)->SetWindowTextW(str);
+	UpdateData(false);
 }

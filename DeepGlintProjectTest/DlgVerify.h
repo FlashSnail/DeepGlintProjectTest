@@ -6,6 +6,7 @@
 #include "detect_recog.h"
 #include <conio.h>
 #include "afxwin.h"
+#include "resource.h"
 //=============================================
 
 // CDlgVerify 对话框
@@ -63,8 +64,18 @@ private:
 	int nested_cascade_opt_len;
 	int i;
 	int num_components;
+//	int recog_time;
+	bool first;
+//================================================
+
+//================================================
+//私有成员函数
+private:
+	void detect();
 //================================================
 public:
 	afx_msg void OnBnClickedBtnBegin();
 	afx_msg void OnBnClickedBtnEnd();
+	CString m_result;
+	void setResult(CString str);
 };
